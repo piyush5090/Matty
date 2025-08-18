@@ -12,7 +12,9 @@ connectDB();
 
 app.use(
   cors({
-    origin: "https://matty-lilac.vercel.app",
+    origin: ["https://matty-lilac.vercel.app"], // allow your Vercel frontend
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
