@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   const [imageData, setImageData] = useState(null);
   const [tplError, setTplError] = useState("");
   const [tplLoading, setTplLoading] = useState(false);
+  const token = sessionStorage.getItem("token");
 
   const dispatch = useDispatch();
 
