@@ -12,7 +12,7 @@ connectDB();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://matty-lilac.vercel.app",
     credentials: true,
   })
 );
