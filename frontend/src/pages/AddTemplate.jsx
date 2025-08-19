@@ -49,7 +49,7 @@ export default function AddTemplate() {
   };
 
   return (
-    <section>
+    <section >
       <h2 className="text-2xl font-semibold mb-4">Add Official Template</h2>
       {tplError && <div className="text-red-500 mb-3">{tplError}</div>}
       <form onSubmit={handleAddTemplate} className="space-y-4 max-w-lg mx-auto">
@@ -59,6 +59,7 @@ export default function AddTemplate() {
           onChange={(e) => setNewTemplateName(e.target.value)}
           placeholder="Template Name"
           required
+          className="bg-white"
         />
         <input
           type="text"
@@ -66,8 +67,9 @@ export default function AddTemplate() {
           onChange={(e) => setNewTemplateCategory(e.target.value)}
           placeholder="Template Category"
           required
+          className="bg-white ml-1"
         />
-        <input type="file" onChange={onPickImage} accept="image/*" required />
+        <input type="file" className="bg-white" onChange={onPickImage} accept="image/*" required />
         <button type="submit" disabled={tplLoading}>
           {tplLoading ? "Adding..." : "Add Template"}
         </button>
