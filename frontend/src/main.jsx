@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import Layout from './components/Layout.jsx'
+import Layout from './Components/Layout.jsx'
 import Register from "./Register/Register"
 import Login from './Login/Login.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
