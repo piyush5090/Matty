@@ -13,7 +13,9 @@ connectDB();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Adjust this if your frontend is hosted elsewhere
+    origin: "https://matty-p9zo.vercel.app/signin", // Adjust this if your frontend is hosted elsewhere
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
