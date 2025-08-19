@@ -1,4 +1,3 @@
-// Canvas/Editor.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Stage,
@@ -26,31 +25,29 @@ import {
 } from "../store/shapesSlice";
 import { fetchDesigns } from "../store/designSlice";
 import axiosInstance from "../utils/axiosinstance";
-import html2canvas from "html2canvas"; // install: npm i html2canvas
+import html2canvas from "html2canvas";
+import { useLocation } from "react-router-dom";
 
-// ---------------- helpers ----------------
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
 
-// Make a safe string ID every time
 const uid = () =>
   `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-// Ensure we always have a real React ref per shape id
 const ensureRef = (store, id) => {
   const key = String(id);
   if (!store.current[key]) store.current[key] = React.createRef();
   return store.current[key];
 };
 
-// Make sure any loaded/saved shape has a string id
 const coerceId = (shape) => ({
   ...shape,
   id: String(shape.id ?? shape._id ?? uid()),
 });
 
-// --------------- image node ---------------
 function KonvaImage({ shape, onSelect, onChange, nodeRef }) {
-  const [img] = useImage(shape.src);
-
+  const [img] = useImage(shape.src, "anonymous");
   return (
     <KImage
       image={img}
@@ -87,20 +84,51 @@ export default function Editor() {
   const { user } = useSelector((state) => state.user);
   const dispatch = useDispatch();
 
+  const query = useQuery();
+  const templateId = query.get("templateId");
+  const [templateBgUrl, setTemplateBgUrl] = useState("");
+  const [stageSize, setStageSize] = useState({ width: 900, height: 600 });
+
   const stageRef = useRef();
   const transformerRef = useRef();
-  const nodeRefs = useRef({}); // id -> React.createRef()
-
+  const nodeRefs = useRef({});
   const [currentColor, setCurrentColor] = useState("#000000");
   const [isPainting, setIsPainting] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-
   const [fontFamily, setFontFamily] = useState("Arial");
   const [fontSize, setFontSize] = useState(24);
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
 
-  // Load shapes for the chosen design (coerce ids to strings)
+  // Responsive Stage
+  useEffect(() => {
+    const update = () => {
+      const w = Math.min(window.innerWidth - 320, 1200);
+      const h = Math.max(400, window.innerHeight - 200);
+      setStageSize({ width: w, height: h });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    if (!templateId) return;
+    axiosInstance.get(`/api/templates/${templateId}`)
+      .then(res => {
+        const template = res.data;
+        setTemplateBgUrl(template.imageUrl || "");
+        if (Array.isArray(template.shapes)) {
+          dispatch(replaceAll(template.shapes.map(coerceId)));
+        }
+      })
+      .catch(e => {
+        setTemplateBgUrl("");
+        dispatch(replaceAll([]));
+        console.error("Failed to load template", e);
+      });
+  }, [templateId, dispatch]);
+
   useEffect(() => {
     if (selectedDesign) {
       const safe = (selectedDesign.Shapes || []).map(coerceId);
@@ -180,7 +208,6 @@ export default function Editor() {
 
   const addShapeAt = (factory, pos) => {
     const s = factory(pos);
-    // Ensure id is a string (uid already is)
     dispatch(addShape({ ...s, id: String(s.id) }));
   };
 
@@ -204,7 +231,7 @@ export default function Editor() {
           stroke: currentColor,
           strokeWidth: 3,
           tension: 0.2,
-          id: uid(), // string
+          id: uid(),
         })
       );
       return;
@@ -334,7 +361,7 @@ export default function Editor() {
           y: 100,
           width: 300,
           height: 200,
-          id: uid(), // string
+          id: uid(),
         })
       );
     };
@@ -369,6 +396,7 @@ export default function Editor() {
     );
     pdf.save("matty_design.pdf");
   };
+
   const saveDesign = async () => {
     const storedUser =
       user && user._id
@@ -404,26 +432,15 @@ export default function Editor() {
       console.warn("Konva export failed:", e?.message);
     }
 
-    // 🔍 Debug logs
-    console.log("🟢 Frontend saveDesign called");
-    console.log("User:", { userId, username });
-    console.log("Shapes count:", shapesToSave.length);
-    console.log("ImageData length:", imageData?.length);
-    console.log("ImageData startsWith:", imageData?.substring(0, 30));
-
     const payload = { Shapes: shapesToSave, name, username, imageData };
-    console.log("Payload sent to backend:", payload);
 
     try {
       const res = await axiosInstance.post("/api/designs", payload);
-      console.log("✅ Backend response:", res.data);
-
       if (res?.data) {
         dispatch(fetchDesigns(userId));
         alert("Design saved successfully!");
       }
     } catch (error) {
-      console.error("❌ Save design failed:", error?.response?.data || error);
       alert(
         "Failed to save design: " +
           (error?.response?.data?.message || error.message)
@@ -431,7 +448,6 @@ export default function Editor() {
     }
   };
 
-  // Keep transformer synced with selection and changes
   useEffect(() => {
     if (!transformerRef.current) return;
     if (!selectedId) {
@@ -446,7 +462,6 @@ export default function Editor() {
     }
   }, [selectedId, shapes]);
 
-  // Live-update text styling on selected text node
   useEffect(() => {
     if (!selectedId) return;
     const s = shapes.find((x) => String(x.id) === String(selectedId));
@@ -468,18 +483,124 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontSize, fontFamily, isBold, isItalic, currentColor]);
 
-  // Responsive canvas
-  const [stageSize, setStageSize] = useState({ width: 900, height: 600 });
-  useEffect(() => {
-    const update = () => {
-      const w = Math.min(window.innerWidth - 320, 1200);
-      const h = Math.max(400, window.innerHeight - 200);
-      setStageSize({ width: w, height: h });
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+  // Sidebar component
+  function SideNavBar() {
+    return (
+      <div className="w-72 bg-gray-800 p-4 space-y-4 overflow-auto">
+        <h3 className="text-sm font-semibold">Text Controls</h3>
+        <div>
+          <label className="text-xs">Font</label>
+          <select
+            value={fontFamily}
+            onChange={(e) => setFontFamily(e.target.value)}
+            className="w-full p-1 bg-gray-700"
+          >
+            <option>Arial</option>
+            <option>Times New Roman</option>
+            <option>Courier New</option>
+            <option>Georgia</option>
+            <option>Roboto</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs">Size</label>
+          <input
+            type="number"
+            value={fontSize}
+            onChange={(e) => setFontSize(Number(e.target.value))}
+            className="w-full p-1 bg-gray-700"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsBold((b) => !b)}
+            className={`px-2 py-1 ${isBold ? "bg-gray-600" : "bg-gray-700"}`}
+          >
+            B
+          </button>
+          <button
+            onClick={() => setIsItalic((i) => !i)}
+            className={`px-2 py-1 ${isItalic ? "bg-gray-600" : "bg-gray-700"}`}
+          >
+            I
+          </button>
+        </div>
+        <h3 className="text-sm font-semibold mt-4">Selected Shape</h3>
+        <div className="text-xs">
+          <div>Selected Id: {selectedId ?? "—"}</div>
+          <div>Color:</div>
+          <input
+            type="color"
+            value={currentColor}
+            onChange={(e) => setCurrentColor(e.target.value)}
+          />
+        </div>
+        <h3 className="text-sm font-semibold mt-4">Image Upload</h3>
+        <div>
+          <input
+            ref={hiddenFileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={handleUploadImageClick}
+            className="px-3 py-1 bg-gray-700"
+          >
+            Upload Image
+          </button>
+        </div>
+        <h3 className="text-sm font-semibold mt-4">Add Shapes</h3>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={handleAddRect} className="px-2 py-1 bg-gray-700">Rect</button>
+          <button onClick={handleAddCircle} className="px-2 py-1 bg-gray-700">Circle</button>
+          <button onClick={handleAddEllipse} className="px-2 py-1 bg-gray-700">Ellipse</button>
+          <button onClick={handleAddLine} className="px-2 py-1 bg-gray-700">Line</button>
+          <button onClick={handleAddTriangle} className="px-2 py-1 bg-gray-700">Triangle</button>
+          <button onClick={handleAddText} className="px-2 py-1 bg-gray-700">Text</button>
+        </div>
+        <h3 className="text-sm font-semibold mt-4">Save / Export</h3>
+        <div className="space-y-2">
+          <button
+            onClick={saveDesign}
+            className="w-full px-3 py-1 bg-gray-700"
+          >
+            Save Design (JSON)
+          </button>
+          <button
+            onClick={exportPNG}
+            className="w-full px-3 py-1 bg-gray-700"
+          >
+            Export PNG
+          </button>
+          <button
+            onClick={exportPDF}
+            className="w-full px-3 py-1 bg-gray-700"
+          >
+            Export PDF
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function TemplateBackgroundImage() {
+    const [image] = useImage(templateBgUrl, "anonymous");
+    if (!templateBgUrl || !image) return null;
+    return (
+      <KImage
+        image={image}
+        x={0}
+        y={0}
+        width={stageSize.width}
+        height={stageSize.height}
+        listening={false}
+        perfectDrawEnabled={false}
+        globalCompositeOperation="source-over"
+      />
+    );
+  }
 
   return (
     <div className="bg-black min-h-screen text-white flex flex-col">
@@ -508,103 +629,8 @@ export default function Editor() {
         onSaveDesign={saveDesign}
         onUploadImageClick={handleUploadImageClick}
       />
-
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar */}
-        <div className="w-72 bg-gray-800 p-4 space-y-4 overflow-auto">
-          <h3 className="text-sm font-semibold">Text Controls</h3>
-          <div>
-            <label className="text-xs">Font</label>
-            <select
-              value={fontFamily}
-              onChange={(e) => setFontFamily(e.target.value)}
-              className="w-full p-1 bg-gray-700"
-            >
-              <option>Arial</option>
-              <option>Times New Roman</option>
-              <option>Courier New</option>
-              <option>Georgia</option>
-              <option>Roboto</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs">Size</label>
-            <input
-              type="number"
-              value={fontSize}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full p-1 bg-gray-700"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsBold((b) => !b)}
-              className={`px-2 py-1 ${isBold ? "bg-gray-600" : "bg-gray-700"}`}
-            >
-              B
-            </button>
-            <button
-              onClick={() => setIsItalic((i) => !i)}
-              className={`px-2 py-1 ${
-                isItalic ? "bg-gray-600" : "bg-gray-700"
-              }`}
-            >
-              I
-            </button>
-          </div>
-
-          <h3 className="text-sm font-semibold mt-4">Selected Shape</h3>
-          <div className="text-xs">
-            <div>Selected Id: {selectedId ?? "—"}</div>
-            <div>Color:</div>
-            <input
-              type="color"
-              value={currentColor}
-              onChange={(e) => setCurrentColor(e.target.value)}
-            />
-          </div>
-
-          <h3 className="text-sm font-semibold mt-4">Image Upload</h3>
-          <div>
-            <input
-              ref={hiddenFileRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <button
-              onClick={handleUploadImageClick}
-              className="px-3 py-1 bg-gray-700"
-            >
-              Upload Image
-            </button>
-          </div>
-
-          <h3 className="text-sm font-semibold mt-4">Save / Export</h3>
-          <div className="space-y-2">
-            <button
-              onClick={saveDesign}
-              className="w-full px-3 py-1 bg-gray-700"
-            >
-              Save Design (JSON)
-            </button>
-            <button
-              onClick={exportPNG}
-              className="w-full px-3 py-1 bg-gray-700"
-            >
-              Export PNG
-            </button>
-            <button
-              onClick={exportPDF}
-              className="w-full px-3 py-1 bg-gray-700"
-            >
-              Export PDF
-            </button>
-          </div>
-        </div>
-
-        {/* Canvas area */}
+        <SideNavBar />
         <div className="flex-1 flex justify-center items-start p-4 overflow-auto">
           <div
             className="bg-white p-2 rounded"
@@ -620,27 +646,22 @@ export default function Editor() {
               style={{ background: "#fff" }}
             >
               <Layer>
+                {/* Background image */}
+                <TemplateBackgroundImage />
+                {/* All shapes on top */}
                 {shapes?.map((shape) => {
                   const id = String(shape.id);
                   const ref = ensureRef(nodeRefs, id);
-
                   switch (shape.type) {
                     case "rect":
                       return (
                         <Rect
                           key={id}
                           id={id}
-                          x={shape.x}
-                          y={shape.y}
-                          width={shape.width}
-                          height={shape.height}
-                          fill={shape.fill ?? "transparent"}
-                          stroke={shape.stroke ?? currentColor}
-                          strokeWidth={shape.strokeWidth ?? 2}
-                          draggable
+                          {...shape}
                           ref={ref}
+                          draggable
                           onClick={() => selectShape(id)}
-                          onTap={() => selectShape(id)}
                           onDragEnd={() => handleDragEnd(id, ref.current)}
                           onTransformEnd={() =>
                             handleTransformEnd(id, ref.current)
@@ -652,14 +673,9 @@ export default function Editor() {
                         <Circle
                           key={id}
                           id={id}
-                          x={shape.x}
-                          y={shape.y}
-                          radius={shape.radius}
-                          fill={shape.fill ?? "transparent"}
-                          stroke={shape.stroke ?? currentColor}
-                          strokeWidth={shape.strokeWidth ?? 2}
-                          draggable
+                          {...shape}
                           ref={ref}
+                          draggable
                           onClick={() => selectShape(id)}
                           onDragEnd={() => handleDragEnd(id, ref.current)}
                           onTransformEnd={() =>
@@ -672,15 +688,9 @@ export default function Editor() {
                         <Ellipse
                           key={id}
                           id={id}
-                          x={shape.x}
-                          y={shape.y}
-                          radiusX={shape.radiusX}
-                          radiusY={shape.radiusY}
-                          fill={shape.fill ?? "transparent"}
-                          stroke={shape.stroke ?? currentColor}
-                          strokeWidth={shape.strokeWidth ?? 2}
-                          draggable
+                          {...shape}
                           ref={ref}
+                          draggable
                           onClick={() => selectShape(id)}
                           onDragEnd={() => handleDragEnd(id, ref.current)}
                           onTransformEnd={() =>
@@ -693,13 +703,9 @@ export default function Editor() {
                         <Line
                           key={id}
                           id={id}
-                          points={shape.points}
-                          stroke={shape.stroke ?? currentColor}
-                          strokeWidth={shape.strokeWidth ?? 2}
-                          tension={shape.tension ?? 0}
-                          lineCap={shape.lineCap ?? "round"}
-                          draggable={!shape.isFreehand}
+                          {...shape}
                           ref={ref}
+                          draggable
                           onClick={() => selectShape(id)}
                           onDragEnd={() => handleDragEnd(id, ref.current)}
                           onTransformEnd={() =>
@@ -712,13 +718,10 @@ export default function Editor() {
                         <Line
                           key={id}
                           id={id}
-                          points={shape.points}
+                          {...shape}
                           closed
-                          fill={shape.fill ?? "transparent"}
-                          stroke={shape.stroke ?? currentColor}
-                          strokeWidth={shape.strokeWidth ?? 2}
-                          draggable
                           ref={ref}
+                          draggable
                           onClick={() => selectShape(id)}
                           onDragEnd={() => handleDragEnd(id, ref.current)}
                           onTransformEnd={() =>
@@ -731,13 +734,7 @@ export default function Editor() {
                         <Text
                           key={id}
                           id={id}
-                          x={shape.x}
-                          y={shape.y}
-                          text={shape.text}
-                          fontSize={shape.fontSize ?? 24}
-                          fontFamily={shape.fontFamily ?? "Arial"}
-                          fontStyle={shape.fontStyle ?? ""}
-                          fill={shape.fill ?? currentColor}
+                          {...shape}
                           draggable
                           ref={ref}
                           onClick={() => selectShape(id)}

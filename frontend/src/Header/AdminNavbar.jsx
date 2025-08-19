@@ -13,6 +13,7 @@ const AdminNavbar = () => {
           <Link to="/admin/templates">Templates</Link>
           <Link to="/admin/designs">Designs</Link>
           <Link to="/admin/users">Users</Link>
+          <Link to="/admin/addtemp">Add Template</Link>
         </div>
       </div>
     </nav>

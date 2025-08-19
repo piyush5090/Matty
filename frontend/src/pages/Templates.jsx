@@ -1,11 +1,12 @@
-// pages/Templates.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axiosInstance from "../utils/axiosinstance";
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -15,7 +16,7 @@ export default function Templates() {
           ? `/api/templates?category=${encodeURIComponent(category)}`
           : "/api/templates";
         const res = await axiosInstance.get(url);
-        setTemplates(res.data);
+        setTemplates(res.data || []);
       } catch (err) {
         console.error("Error fetching templates:", err);
         setTemplates([]);
@@ -25,6 +26,10 @@ export default function Templates() {
     };
     fetchTemplates();
   }, [category]);
+
+  const handleTemplateClick = (templateId) => {
+    navigate(`/editor?templateId=${templateId}`);
+  };
 
   return (
     <div className="bg-gray-900 min-h-screen text-white p-6">
@@ -37,7 +42,6 @@ export default function Templates() {
           className="px-3 py-2 rounded bg-gray-800 border border-gray-700 outline-none"
         />
       </div>
-
       {loading ? (
         <p>Loading...</p>
       ) : templates.length === 0 ? (
@@ -45,7 +49,11 @@ export default function Templates() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {templates.map((t) => (
-            <div key={t._id} className="bg-gray-800 rounded p-3">
+            <div
+              key={t._id}
+              className="bg-gray-800 rounded p-3 cursor-pointer hover:bg-gray-700 transition"
+              onClick={() => handleTemplateClick(t._id)}
+            >
               <div className="text-sm text-gray-300 mb-2">{t.category}</div>
               <div className="aspect-[5/3] overflow-hidden rounded border border-gray-700">
                 {t.imageUrl ? (
@@ -53,6 +61,7 @@ export default function Templates() {
                     src={t.imageUrl}
                     alt={t.name}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-full grid place-items-center text-gray-500">

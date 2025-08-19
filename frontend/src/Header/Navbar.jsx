@@ -29,6 +29,7 @@ export default function Navbar() {
     },
     { name: "Admin Dashboard", route: "/admindashboard", active: isAdmin },
     { name: "Users", route: "/users", active: isAdmin },
+    { name: "Add Template", route: "/addtemp", active: isAdmin },
     { name: "Login", route: "/signin", active: !authStatus && !isAdmin },
     { name: "AdminLogin", route: "/admin", active: !authStatus && !isAdmin },
     { name: "Signup", route: "/register", active: !authStatus && !isAdmin },

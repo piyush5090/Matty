@@ -1,11 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import Layout from './Components/Layout.jsx'
+import Layout from './components/Layout.jsx'
 import Register from "./Register/Register"
 import Login from './Login/Login.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminLogin from './Login/AdminLogin.jsx'
+import AddTemplate from './pages/AddTemplate.jsx'
 import Editor from './Canvas/Editor.jsx'
 import GetStarted from './pages/GetStarted.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -28,6 +29,7 @@ const router = createBrowserRouter(
       <Route path='/dashboard' element={<Dashboard/>}/>
       <Route path='/about' element={<About />}/>
       <Route path='/admindashboard' element={<AdminDashboard />}/>
+      <Route path='/addtemp' element={<AddTemplate />}/>
       <Route path='/templates' element={<Templates />} />
       <Route path='/users' element={<Users />} />
     </Route>
