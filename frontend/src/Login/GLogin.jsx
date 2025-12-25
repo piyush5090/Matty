@@ -11,7 +11,7 @@ export default function GLogin() {
   const handleLoginSuccess = async (credentialResponse) => {
     try {
       const res = await fetch(
-        (import.meta.env.VITE_API_URL || `https://matty.onrender.com`) + "/api/auth/google-login",
+        (import.meta.env.VITE_API_URL || `https://matty-backend-2.onrender.com`) + "/api/auth/google-login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
