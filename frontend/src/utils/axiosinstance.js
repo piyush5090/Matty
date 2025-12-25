@@ -4,8 +4,7 @@ const PORT = 5000;
 
 const axiosInstance = axios.create({
   // baseURL: `http://localhost:5000`,
-  // baseURL: `https://matty-tool.onrender.com/`,
-  baseURL: `https://matty.onrender.com/`,
+  baseURL: `https://matty-backend-2.onrender.com`,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
